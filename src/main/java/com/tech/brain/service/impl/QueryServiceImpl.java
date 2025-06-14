@@ -1,0 +1,96 @@
+package com.tech.brain.service.impl;
+
+import com.tech.brain.entity.ProductEntity;
+import com.tech.brain.exception.ErrorCode;
+import com.tech.brain.exception.ErrorSeverity;
+import com.tech.brain.exception.QueryException;
+import com.tech.brain.model.Product;
+import com.tech.brain.repository.QueryRepository;
+import com.tech.brain.service.QueryService;
+import jakarta.transaction.Transactional;
+import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+@Service
+public class QueryServiceImpl implements QueryService {
+
+    private final QueryRepository queryRepository;
+
+    public QueryServiceImpl(QueryRepository queryRepository) {
+        this.queryRepository = queryRepository;
+    }
+
+    @Override
+    public List<Product> getAllProduct() {
+        return queryRepository.findAll().stream().map(entity ->{
+            Product to = new Product();
+            BeanUtils.copyProperties(entity, to);
+            return to;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public Product getProductById(Long id) {
+        Product result = new Product();
+        Optional<ProductEntity> product = queryRepository.findById(id);
+        BeanUtils.copyProperties(product, result);
+        return result;
+    }
+
+    @Override
+    public Product getProductByProductCode(String productCode) {
+        Product result = new Product();
+        Optional<ProductEntity> product = queryRepository.findByProductCode(productCode);
+        BeanUtils.copyProperties(product, result);
+        return result;
+    }
+
+    @Transactional
+    @Override
+    public Product createProduct(Product product) {
+        ProductEntity[] products = new ProductEntity[1];
+        queryRepository.findByProductCode(product.getProductCode()).ifPresentOrElse(existingProduct -> {
+            throw new QueryException(ErrorCode.ERR009.getErrorCode(), ErrorSeverity.FATAL,
+                    ErrorCode.ERR009.getErrorMessage());
+        }, ()->{
+            ProductEntity entity = new ProductEntity();
+            BeanUtils.copyProperties(product, entity);
+            products[0] = queryRepository.save(entity);
+        });
+        BeanUtils.copyProperties(products[0], product);
+        return product;
+    }
+
+    @Transactional
+    @Override
+    public Product updateProduct(Product product) {
+        ProductEntity[] products = new ProductEntity[1];
+        queryRepository.findByProductCode(product.getProductCode()).ifPresentOrElse(existingProduct -> {
+            copyNonNullProperties(product, existingProduct);
+            products[0] = queryRepository.save(existingProduct);
+        }, () -> {
+            throw new QueryException(ErrorCode.ERR002.getErrorCode(), ErrorSeverity.FATAL,
+                    ErrorCode.ERR002.getErrorMessage());
+        });
+        BeanUtils.copyProperties(products[0], product);
+        return product;
+    }
+
+    @Transactional
+    @Override
+    public String deleteProduct(Product product) {
+        AtomicReference<String> response = new AtomicReference<>("");
+        queryRepository.findByProductCode(product.getProductCode()).ifPresentOrElse(existingProduct -> {
+            queryRepository.deleteById(existingProduct.getId());
+            response.set("Deleted product " + existingProduct.getId());
+        }, ()-> {
+            response.set("Deletion failed product: " + product.getProductCode() + " May be there is no product");
+        });
+        return response.get();
+    }
+}
