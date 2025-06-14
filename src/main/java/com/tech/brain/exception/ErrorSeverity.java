@@ -1,5 +1,5 @@
 package com.tech.brain.exception;
 
 public enum ErrorSeverity {
-    FATAL
+    FATAL, ERROR, WARN, INFO, DEBUG, TRACE;
 }

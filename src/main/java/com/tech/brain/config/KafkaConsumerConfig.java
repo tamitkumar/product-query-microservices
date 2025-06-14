@@ -1,6 +1,5 @@
 package com.tech.brain.config;
 
-import com.tech.brain.model.Product;
 import com.tech.brain.model.ProductEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
