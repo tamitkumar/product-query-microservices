@@ -7,7 +7,9 @@ import com.tech.brain.exception.QueryException;
 import com.tech.brain.model.Product;
 import com.tech.brain.repository.QueryRepository;
 import com.tech.brain.service.QueryService;
+import com.tech.brain.utils.JSONUtils;
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -16,13 +18,17 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class QueryServiceImpl implements QueryService {
 
     private final QueryRepository queryRepository;
 
-    public QueryServiceImpl(QueryRepository queryRepository) {
+    private final JSONUtils jsonUtils;
+
+    public QueryServiceImpl(QueryRepository queryRepository, JSONUtils jsonUtils) {
         this.queryRepository = queryRepository;
+        this.jsonUtils = jsonUtils;
     }
 
     @Override
@@ -53,13 +59,18 @@ public class QueryServiceImpl implements QueryService {
     @Transactional
     @Override
     public Product createProduct(Product product) {
+        log.info("📥 Creating Product: {}", jsonUtils.javaToJSON(product));
         ProductEntity[] products = new ProductEntity[1];
         queryRepository.findByProductCode(product.getProductCode()).ifPresentOrElse(existingProduct -> {
-            throw new QueryException(ErrorCode.ERR009.getErrorCode(), ErrorSeverity.FATAL,
-                    ErrorCode.ERR009.getErrorMessage());
+            log.error("Product is already in database : {}", existingProduct.getProductCode());
+            copyNonNullProperties(product, existingProduct);
+            products[0] = queryRepository.save(existingProduct);
+//            throw new QueryException(ErrorCode.ERR009.getErrorCode(), ErrorSeverity.FATAL,
+//                    ErrorCode.ERR009.getErrorMessage());
         }, ()->{
             ProductEntity entity = new ProductEntity();
             BeanUtils.copyProperties(product, entity);
+            log.info("Creating product : {}", jsonUtils.javaToJSON(entity));
             products[0] = queryRepository.save(entity);
         });
         BeanUtils.copyProperties(products[0], product);
