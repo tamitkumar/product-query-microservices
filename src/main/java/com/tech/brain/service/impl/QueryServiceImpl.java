@@ -80,12 +80,14 @@ public class QueryServiceImpl implements QueryService {
     @Transactional
     @Override
     public Product updateProduct(Product product) {
+        log.info("📥 Updating Product: {}", jsonUtils.javaToJSON(product));
         ProductEntity[] products = new ProductEntity[1];
         queryRepository.findByProductCode(product.getProductCode()).ifPresentOrElse(existingProduct -> {
             copyNonNullProperties(product, existingProduct);
             products[0] = queryRepository.save(existingProduct);
         }, () -> {
-            throw new QueryException(ErrorCode.ERR002.getErrorCode(), ErrorSeverity.FATAL,
+            log.error(ErrorCode.ERR002.getErrorMessage());
+            throw new QueryException(ErrorCode.ERR002.getErrorCode(), ErrorSeverity.DEBUG,
                     ErrorCode.ERR002.getErrorMessage());
         });
         BeanUtils.copyProperties(products[0], product);
@@ -95,13 +97,14 @@ public class QueryServiceImpl implements QueryService {
     @Transactional
     @Override
     public String deleteProduct(Product product) {
+        log.info("📥 Deleting Product: {}", jsonUtils.javaToJSON(product));
         AtomicReference<String> response = new AtomicReference<>("");
         queryRepository.findByProductCode(product.getProductCode()).ifPresentOrElse(existingProduct -> {
             queryRepository.deleteById(existingProduct.getId());
             response.set("Deleted product " + existingProduct.getId());
-        }, ()-> {
-            response.set("Deletion failed product: " + product.getProductCode() + " May be there is no product");
-        });
+        }, ()->
+            response.set("Deletion failed product: " + product.getProductCode() + " May be there is no product")
+        );
         return response.get();
     }
 }
