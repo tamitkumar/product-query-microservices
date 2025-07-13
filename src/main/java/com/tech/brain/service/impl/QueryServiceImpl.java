@@ -2,8 +2,6 @@ package com.tech.brain.service.impl;
 
 import com.tech.brain.entity.ProductEntity;
 import com.tech.brain.exception.ErrorCode;
-import com.tech.brain.exception.ErrorSeverity;
-import com.tech.brain.exception.QueryException;
 import com.tech.brain.model.Product;
 import com.tech.brain.repository.QueryRepository;
 import com.tech.brain.service.QueryService;
@@ -81,17 +79,17 @@ public class QueryServiceImpl implements QueryService {
     @Override
     public Product updateProduct(Product product) {
         log.info("📥 Updating Product: {}", jsonUtils.javaToJSON(product));
+        AtomicReference<Product> result = new AtomicReference<>(new Product());
         ProductEntity[] products = new ProductEntity[1];
         queryRepository.findByProductCode(product.getProductCode()).ifPresentOrElse(existingProduct -> {
             copyNonNullProperties(product, existingProduct);
             products[0] = queryRepository.save(existingProduct);
+            BeanUtils.copyProperties(products[0], result.get());
         }, () -> {
             log.error(ErrorCode.ERR002.getErrorMessage());
-            throw new QueryException(ErrorCode.ERR002.getErrorCode(), ErrorSeverity.DEBUG,
-                    ErrorCode.ERR002.getErrorMessage());
+            result.set(createProduct(product));
         });
-        BeanUtils.copyProperties(products[0], product);
-        return product;
+        return result.get();
     }
 
     @Transactional
